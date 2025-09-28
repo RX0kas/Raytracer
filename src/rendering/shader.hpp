@@ -16,6 +16,7 @@ public:
    void setFloat(const std::string& name, float value) const;
    void setVec2f(const std::string& name, float v0, float v1) const;
    void setVec3f(const std::string& name, float v0, float v1, float v2) const;
+   [[nodiscard]] unsigned int getProgram() const {return program;}
 private:
    unsigned int program;
 };

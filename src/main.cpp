@@ -14,6 +14,21 @@
 
 Window* window;
 
+std::vector<Sphere> spheres = {
+   Sphere{
+      .center = glm::vec3(0, 0, 10),
+      .radius = 2
+   },
+   Sphere{
+      .center = glm::vec3(10, 0, 10),
+      .radius = 1
+   },
+   Sphere{
+      .center = glm::vec3(10, 0, 10),
+      .radius = 1
+   }
+};
+
 int main() {
    printf("Initializing GLFW\n");
    window = windowInit("RayTracer",800,600);
@@ -29,6 +44,9 @@ int main() {
    ImGuiManager imGuiManager;
 
    printf("ImGui Initialized\n");
+
+   //printf("Bind UBO");
+   //gladManager::createUBO(shader.getProgram(),spheres);
 
    float focalLength = 1;
    gladManager::setDeltaTime(0.0f);

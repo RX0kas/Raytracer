@@ -10,10 +10,18 @@
 #include <cassert>
 #include <locale>
 #include <memory>
+#include <vector>
 
 #include "camera.hpp"
 #include "glad/glad.h"
 #include "GLFW/glfw3.h"
+
+struct Sphere {
+   glm::vec3 center;
+   float radius;
+};
+
+constexpr int NBR_SPHERES = 3;
 
 class gladManager {
 public:
@@ -40,6 +48,24 @@ public:
 
    static void unbindVAO(unsigned int* VAO) {
       glDeleteVertexArrays(1, VAO);
+   }
+
+   static void createUBO(unsigned int shaderProgram, const std::vector<Sphere>& spheres) {
+      // Create and bind the UBO
+      GLuint uboSphere;
+      glGenBuffers(1, &uboSphere);
+      glBindBuffer(GL_UNIFORM_BUFFER, uboSphere);
+      glBufferData(GL_UNIFORM_BUFFER, sizeof(Sphere) * NBR_SPHERES, NULL, GL_DYNAMIC_DRAW);
+
+      // Bind the UBO to a specific binding point
+      GLuint uniformBlockIndex = glGetUniformBlockIndex(shaderProgram, "LightBlock");
+      glUniformBlockBinding(shaderProgram, uniformBlockIndex, 0);
+      glBindBufferBase(GL_UNIFORM_BUFFER, 0, uboSphere);
+
+      // Update the data in the UBO
+      glBindBuffer(GL_UNIFORM_BUFFER, uboSphere);
+      glBufferSubData(GL_UNIFORM_BUFFER, 0, spheres.size(), spheres.data());
+      glBindBuffer(GL_UNIFORM_BUFFER, 0);
    }
 
    static void clear() {
