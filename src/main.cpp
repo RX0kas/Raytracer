@@ -115,13 +115,13 @@ int main() {
       ImGui::Text("FPS: %.2f",1/d);
       ImGui::Separator();
       ImGui::Text("Uniforms:");
-      ImGui::Text("focal_length = %.2f\n",focalLength);
+      ImGui::Text("focalLength = %.2f\n",focalLength);
       ImGui::Text("resolution = (%.2f,%.2f)\n",static_cast<float>(window->width), static_cast<float>(window->height));
-      ImGui::Text("camdir = (%.2f,%.2f,%.2f)\n",dir.x,dir.y,dir.z);
-      ImGui::Text("camup = (%.2f,%.2f,%.2f)\n",up.x,up.y,up.z);
-      ImGui::Text("campos = (%.2f,%.2f,%.2f)\n",pos.x,pos.y,pos.z);
+      ImGui::Text("camDir = (%.2f,%.2f,%.2f)\n",dir.x,dir.y,dir.z);
+      ImGui::Text("camUp = (%.2f,%.2f,%.2f)\n",up.x,up.y,up.z);
+      ImGui::Text("camPos = (%.2f,%.2f,%.2f)\n",pos.x,pos.y,pos.z);
       ImGui::Text("time = %d",time);
-      ImGui::Text("maxbounces = %d",maxBounces);
+      ImGui::Text("maxBounces = %d",maxBounces);
       ImGui::End();
 
       // Shader things
@@ -132,14 +132,14 @@ int main() {
       }
 
       shader.useShader();
-      shader.setFloat("focal_length", focalLength);
+      shader.setFloat("focalLength", focalLength);
       shader.setVec2f("resolution", static_cast<float>(window->width), static_cast<float>(window->height));
-      shader.setVec3f("camdir",dir.x,dir.y,dir.z);
-      shader.setVec3f("camup",up.x,up.y,up.z);
-      shader.setVec3f("campos",pos.x,pos.y,pos.z);
+      shader.setVec3f("camDir",dir.x,dir.y,dir.z);
+      shader.setVec3f("camUp",up.x,up.y,up.z);
+      shader.setVec3f("camPos",pos.x,pos.y,pos.z);
       shader.setUInt("time",time);
-      shader.setInt("maxbounces",maxBounces);
-      shader.setInt("lastmove",frameSinceLastMove);
+      shader.setInt("maxBounces",maxBounces);
+      shader.setInt("lastMove",frameSinceLastMove);
 
       // Render Triangle
       gladManager::draw();

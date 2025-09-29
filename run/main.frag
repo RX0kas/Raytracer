@@ -4,14 +4,14 @@ out vec4 FragColor;
 
 #include "const.glsl"
 
-uniform float focal_length;
+uniform float focalLength;
 uniform vec2 resolution;
-uniform vec3 camdir;
-uniform vec3 camup;
-uniform vec3 campos;
+uniform vec3 camDir;
+uniform vec3 camUp;
+uniform vec3 camPos;
 uniform int time;
-uniform int maxbounces;
-uniform int lastmove;
+uniform int maxBounces;
+uniform int lastMove;
 uniform sampler2D accumTex;
 
 uint rngState;
@@ -207,14 +207,14 @@ vec3 getRayDir(vec3 camDir, vec3 camUp, vec2 texCoord) {
     vec3 camSide = normalize(cross(camDir, camUp));
     vec2 p = 2.0 * texCoord - 1.0;
     p.x *= resolution.x / resolution.y;
-    return normalize(p.x * camSide + p.y * camUp + focal_length * camDir);
+    return normalize(p.x * camSide + p.y * camUp + focalLength * camDir);
 }
 
 vec3 Trace(Ray ray) {
     vec3 radiance = vec3(0.0);
     vec3 throughput = vec3(1.0);
 
-    for (int bounce = 0; bounce < maxbounces; ++bounce) {
+    for (int bounce = 0; bounce < maxBounces; ++bounce) {
         HitInfo hit = RaySphere(ray); // should return closest hit with sphere in HitInfo
         if (!hit.didHit) {
             // environment: return black or env color
@@ -243,7 +243,7 @@ vec3 Trace(Ray ray) {
         ray.direction = newDir;
 
         // Russian roulette after few bounces
-        if (bounce > maxbounces/4) {
+        if (bounce > maxBounces/4) {
             float p = max(max(throughput.r, throughput.g), throughput.b);
             float r = randf(rngState);
             if (r > p) break;
@@ -264,7 +264,7 @@ void main()
     initRNG(gl_FragCoord.xy);
 
     vec2 texCoord = gl_FragCoord.xy / resolution;
-    Ray r = Ray(campos, getRayDir(camdir, camup, texCoord));
+    Ray r = Ray(camPos, getRayDir(camDir, camUp, texCoord));
 
     Material m0;
     m0.color = vec4(1,0,0,1);
@@ -289,6 +289,24 @@ void main()
     spheres[2] = Sphere(vec3(3.5,0,10), 1.0, m2);
     spheres[3] = Sphere(vec3(0,-102,10), 100.0, floorM);
 
-    vec3 col = Trace(r);
-    FragColor = vec4(col, 1.0);
+    const int rayPerPixel = 50;
+
+    vec3 allColor[rayPerPixel];
+    for (int i=0;i<rayPerPixel;i++) {
+        allColor[i] = Trace(r);
+    }
+
+    float xAvg = allColor[0].x;
+    float yAvg = allColor[0].y;
+    float zAvg = allColor[0].z;
+
+    if (rayPerPixel>1) {
+        for (int i=1;i<rayPerPixel;i++) {
+            xAvg += allColor[i].x;
+            yAvg += allColor[i].y;
+            zAvg += allColor[i].z;
+        }
+    }
+
+    FragColor = vec4(xAvg/rayPerPixel,yAvg/rayPerPixel,zAvg/rayPerPixel, 1.0);
 }
