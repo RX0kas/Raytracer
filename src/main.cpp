@@ -51,15 +51,23 @@ int main() {
    float focalLength = 1;
    gladManager::setDeltaTime(0.0f);
    float lastFrame = 0.0f;
+   int maxBounces = 20;
 
    Camera& camera = gladManager::getCamera();
 
+   gladManager::createAccumulationTexture(window->width, window->height);
+
+   unsigned int time = 0;
+   int frameSinceLastMove = 0;
+
    // Boucle principale
    while (!windowShouldClose()) {
-      float currentFrame = static_cast<float>(glfwGetTime());
+      auto currentFrame = static_cast<float>(glfwGetTime());
       gladManager::setDeltaTime(currentFrame - lastFrame);
       float d = gladManager::getDeltaTime();
       lastFrame = currentFrame;
+
+      bool moved = false;
 
       // Input
       if (glfwGetKey(window->window, GLFW_KEY_ESCAPE) == GLFW_PRESS)
@@ -71,13 +79,20 @@ int main() {
 
       if (glfwGetKey(window->window, GLFW_KEY_W) == GLFW_PRESS) {
          camera.ProcessKeyboard(FORWARD, d);
+         moved = true;
       }
-      if (glfwGetKey(window->window, GLFW_KEY_S) == GLFW_PRESS)
+      if (glfwGetKey(window->window, GLFW_KEY_S) == GLFW_PRESS) {
          camera.ProcessKeyboard(BACKWARD, d);
-      if (glfwGetKey(window->window, GLFW_KEY_A) == GLFW_PRESS)
+         moved = true;
+      }
+      if (glfwGetKey(window->window, GLFW_KEY_A) == GLFW_PRESS) {
          camera.ProcessKeyboard(LEFT, d);
-      if (glfwGetKey(window->window, GLFW_KEY_D) == GLFW_PRESS)
+         moved = true;
+      }
+      if (glfwGetKey(window->window, GLFW_KEY_D) == GLFW_PRESS) {
          camera.ProcessKeyboard(RIGHT, d);
+         moved = true;
+      }
 
       imGuiManager.newFrame();
       // Couleur de fond
@@ -89,11 +104,12 @@ int main() {
       // ImGui Widget
       ImGui::Begin("Camera");
       ImGui::SliderFloat("Focal length",&focalLength,0,10,"%.1f");
-      ImGui::Separator();
       glm::vec3 pos = gladManager::getCamera().Position;
       glm::vec3 front = gladManager::getCamera().Front;
       ImGui::Text("Position: %.2f,%.2f,%.2f",pos.x,pos.y,pos.z);
       ImGui::Text("Front: %.2f,%.2f,%.2f",front.x,front.y,front.z);
+      ImGui::Separator();
+      ImGui::SliderInt("Max bounces",&maxBounces,2,100);
       ImGui::Separator();
       ImGui::Text("DeltaTime: %.2f",d);
       ImGui::Text("FPS: %.2f",1/d);
@@ -104,15 +120,26 @@ int main() {
       ImGui::Text("camdir = (%.2f,%.2f,%.2f)\n",dir.x,dir.y,dir.z);
       ImGui::Text("camup = (%.2f,%.2f,%.2f)\n",up.x,up.y,up.z);
       ImGui::Text("campos = (%.2f,%.2f,%.2f)\n",pos.x,pos.y,pos.z);
+      ImGui::Text("time = %d",time);
+      ImGui::Text("maxbounces = %d",maxBounces);
       ImGui::End();
 
       // Shader things
+      if (moved) {
+         frameSinceLastMove = 0;
+      } else {
+         frameSinceLastMove++;
+      }
+
       shader.useShader();
       shader.setFloat("focal_length", focalLength);
       shader.setVec2f("resolution", static_cast<float>(window->width), static_cast<float>(window->height));
       shader.setVec3f("camdir",dir.x,dir.y,dir.z);
       shader.setVec3f("camup",up.x,up.y,up.z);
       shader.setVec3f("campos",pos.x,pos.y,pos.z);
+      shader.setUInt("time",time);
+      shader.setInt("maxbounces",maxBounces);
+      shader.setInt("lastmove",frameSinceLastMove);
 
       // Render Triangle
       gladManager::draw();
@@ -121,6 +148,8 @@ int main() {
 
       glfwSwapBuffers(window->window);
       glfwPollEvents();
+      time++;
+
    }
 
    gladManager::unbindVAO(&VAO);

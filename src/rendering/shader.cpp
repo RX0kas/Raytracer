@@ -23,6 +23,45 @@ std::string read_file(const std::string& filepath) {
    return buffer;
 }
 
+std::string preprocesseur(const std::string& src) {
+   std::string result = src;
+   //printf("Before: %s\n", result.c_str());
+
+   size_t index = result.find("#include");
+   while (index != std::string::npos) {
+      // Find the end of #include directive
+      size_t directive_end = result.find_first_of("\"<", index + 8);
+      if (directive_end == std::string::npos) {
+         break; // Malformed include
+      }
+
+      // Determine quote type and find matching end quote
+      char quote_char = result[directive_end];
+      char end_quote = (quote_char == '<') ? '>' : quote_char;
+
+      size_t file_start = directive_end + 1;
+      size_t file_end = result.find(end_quote, file_start);
+      if (file_end == std::string::npos) {
+         break; // Malformed include
+      }
+
+      // Extract filename
+      std::string filename = result.substr(file_start, file_end - file_start);
+
+      // Read the file content
+      std::string file_content = read_file(filename);
+
+      // Replace the entire #include directive with file content
+      result.replace(index, file_end + 1 - index, file_content);
+
+      // Continue searching from current position
+      index = result.find("#include", index + file_content.length());
+   }
+
+   //printf("After: %s\n", result.c_str());
+   return result;
+}
+
 Shader::Shader(const std::string &vertexShaderPath, const std::string &fragmentShaderPath) {
    int success;
    char infoLog[512];
@@ -30,9 +69,9 @@ Shader::Shader(const std::string &vertexShaderPath, const std::string &fragmentS
    program = glCreateProgram();
 
    // Lire les fichiers shaders
-   std::string contentV = read_file(vertexShaderPath);
+   std::string contentV = preprocesseur(read_file(vertexShaderPath));
    const char* srcV = contentV.c_str();
-   std::string contentF = read_file(fragmentShaderPath);
+   std::string contentF = preprocesseur(read_file(fragmentShaderPath));
    const char* srcF = contentF.c_str();
 
    if (contentV.empty() || contentF.empty()) {
@@ -89,6 +128,10 @@ void Shader::setBool(const std::string& name, int value) const {
 void Shader::setInt(const std::string& name, int value) const {
    glUniform1i(glGetUniformLocation(program, name.c_str()), value);
 }
+void Shader::setUInt(const std::string& name, unsigned int value) const {
+   glUniform1ui(glGetUniformLocation(program, name.c_str()), value);
+}
+
 void Shader::setFloat(const std::string& name, float value) const {
    glUniform1f(glGetUniformLocation(program, name.c_str()), value);
 }
