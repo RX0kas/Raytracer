@@ -35,7 +35,10 @@ int main() {
    glfwPollEvents();
    printf("GLFW initialized\n");
 
+   // Used to render the raytraced image to a texture
    Shader shader("main.vert","main.frag");
+   // Used to display the texture to the screen
+   Shader screenShader("screenShader.vert","screenShader.frag");
 
    unsigned int VAO;
    gladManager::bindVAO(&VAO);
@@ -45,9 +48,6 @@ int main() {
 
    printf("ImGui Initialized\n");
 
-   //printf("Bind UBO");
-   //gladManager::createUBO(shader.getProgram(),spheres);
-
    float focalLength = 1;
    gladManager::setDeltaTime(0.0f);
    float lastFrame = 0.0f;
@@ -55,7 +55,7 @@ int main() {
 
    Camera& camera = gladManager::getCamera();
 
-   gladManager::createAccumulationTexture(window->width, window->height);
+   gladManager::generateFrameBuffer(window->width, window->height);
 
    unsigned int time = 0;
    int frameSinceLastMove = 0;
@@ -122,6 +122,7 @@ int main() {
       ImGui::Text("camPos = (%.2f,%.2f,%.2f)\n",pos.x,pos.y,pos.z);
       ImGui::Text("time = %d",time);
       ImGui::Text("maxBounces = %d",maxBounces);
+      ImGui::Text("lastMove = %d",frameSinceLastMove);
       ImGui::End();
 
       // Shader things
@@ -130,6 +131,11 @@ int main() {
       } else {
          frameSinceLastMove++;
       }
+
+      int writeIndex = (frameSinceLastMove % 2 == 0) ? 0 : 1;
+      int readIndex = 1 - writeIndex; // on lit l’autre texture
+
+      glBindFramebuffer(GL_FRAMEBUFFER, gladManager::framebuffers[writeIndex]);
 
       shader.useShader();
       shader.setFloat("focalLength", focalLength);
@@ -140,16 +146,27 @@ int main() {
       shader.setUInt("time",time);
       shader.setInt("maxBounces",maxBounces);
       shader.setInt("lastMove",frameSinceLastMove);
+      // Send old frame
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, gladManager::getAccumTexture());
+      glUniform1i(glGetUniformLocation(shader.getProgram(), "oldFrame"), 0);
 
       // Render Triangle
       gladManager::draw();
+
+      // Show the texture to the screen so the raytraced image
+      glBindFramebuffer(GL_FRAMEBUFFER, 0);
+      screenShader.useShader();
+      glActiveTexture(GL_TEXTURE0);
+      glBindTexture(GL_TEXTURE_2D, gladManager::textures[writeIndex]);
+
+      gladManager::draw(); // affiche la texture sur l'écran
 
       imGuiManager.render();
 
       glfwSwapBuffers(window->window);
       glfwPollEvents();
       time++;
-
    }
 
    gladManager::unbindVAO(&VAO);

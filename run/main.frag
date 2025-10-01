@@ -12,9 +12,7 @@ uniform vec3 camPos;
 uniform int time;
 uniform int maxBounces;
 uniform int lastMove;
-uniform sampler2D accumTex;
-
-uint rngState;
+uniform sampler2D oldFrame;
 
 struct Material {
     vec4 color;
@@ -75,6 +73,12 @@ uint wang_hash(uint x) {
     return x;
 }
 
+
+uint generateSeed(int i) {
+    uint seed = uint(gl_FragCoord.x) * 1973u + uint(gl_FragCoord.y) * 9277u + uint(time + 1) * 26699u + uint(i) * 911247u + uint(lastMove) * 54782u;
+    seed = wang_hash(seed);
+    return seed;
+}
 float randf(inout uint state) {
     // xorshift32 variant
     state ^= state << 13;
@@ -109,57 +113,6 @@ vec3 sampleHemisphereCosine(vec3 normal, inout uint rngState) {
     vec3 tangentY = cross(normal, tangentX);
     // transform to world
     return normalize(samplecos.x * tangentX + samplecos.y * tangentY + samplecos.z * normal);
-}
-uint hash(uint x) {
-    x = (x ^ (x >> 16)) * 0x7feb352dU;
-    x = (x ^ (x >> 15)) * 0x846ca68bU;
-    return x ^ (x >> 16);
-}
-
-float random(inout uint state) {
-    state = hash(state);
-    return float(state) / 4294967295.0;
-}
-
-vec3 randomDirection(inout uint state) {
-    vec3 v;
-    float lenSq;
-    do {
-        v = vec3(random(state) * 2.0 - 1.0,
-        random(state) * 2.0 - 1.0,
-        random(state) * 2.0 - 1.0);
-        lenSq = dot(v, v);
-    } while(lenSq > 1.0 || lenSq == 0.0);
-
-    return v * inversesqrt(lenSq);
-}
-
-// hemisphere sampling with bias to avoid self-intersection
-vec3 randomHemisphereDirection(vec3 normal, inout uint state) {
-    vec3 dir = randomDirection(state);
-
-    // Make sure we're in the hemisphere
-    if (dot(dir, normal) < 0.0) {
-        dir = -dir;
-    }
-
-    return dir;
-}
-
-// cosine-weighted sampling for more realistic results
-vec3 randomCosineHemisphereDirection(vec3 normal, inout uint state) {
-    float r = sqrt(random(state));
-    float theta = TWO_PI * random(state);
-
-    vec3 tangent = normalize(cross(normal,
-    abs(normal.x) > 0.1 ? vec3(0.0, 1.0, 0.0) : vec3(1.0, 0.0, 0.0)));
-    vec3 bitangent = cross(normal, tangent);
-
-    float x = r * cos(theta);
-    float y = r * sin(theta);
-    float z = sqrt(max(0.0, 1.0 - x*x - y*y)); // Avoid negative sqrt
-
-    return tangent * x + bitangent * y + normal * z;
 }
 
 HitInfo RaySphere(Ray ray)
@@ -210,12 +163,14 @@ vec3 getRayDir(vec3 camDir, vec3 camUp, vec2 texCoord) {
     return normalize(p.x * camSide + p.y * camUp + focalLength * camDir);
 }
 
-vec3 Trace(Ray ray) {
+vec3 Trace(Ray ray,int i) {
     vec3 radiance = vec3(0.0);
     vec3 throughput = vec3(1.0);
 
+    uint seed = generateSeed(i);
+
     for (int bounce = 0; bounce < maxBounces; ++bounce) {
-        HitInfo hit = RaySphere(ray); // should return closest hit with sphere in HitInfo
+        HitInfo hit = RaySphere(ray);// should return closest hit with sphere in HitInfo
         if (!hit.didHit) {
             // environment: return black or env color
             break;
@@ -233,7 +188,7 @@ vec3 Trace(Ray ray) {
         }
 
         // sample new direction cosine-weighted around normal
-        vec3 newDir = sampleHemisphereCosine(hit.normal, rngState);
+        vec3 newDir = sampleHemisphereCosine(hit.normal, seed);
 
         // update throughput: for lambertian BRDF = albedo/pi and pdf = cos(theta)/pi
         // BRDF/pdf => albedo (cancels pi), so we can simply multiply by albedo
@@ -245,7 +200,7 @@ vec3 Trace(Ray ray) {
         // Russian roulette after few bounces
         if (bounce > maxBounces/4) {
             float p = max(max(throughput.r, throughput.g), throughput.b);
-            float r = randf(rngState);
+            float r = randf(seed);
             if (r > p) break;
             throughput /= max(p, 1e-6);
         }
@@ -254,15 +209,15 @@ vec3 Trace(Ray ray) {
     return radiance;
 }
 
-void initRNG(vec2 pixelCoord) {
-    uint seed = uint(gl_FragCoord.x) * 1973u + uint(gl_FragCoord.y) * 9277u + uint(time + 1) * 26699u;
-    rngState = wang_hash(seed);
+vec4 combine_with_old_frame(vec4 newPixel, vec2 texCoord) {
+    vec4 oldPixel = texture(oldFrame, texCoord);
+
+    float weight = 1.0 / float(lastMove + 1);
+    return mix(oldPixel, newPixel, weight);
 }
 
 void main()
 {
-    initRNG(gl_FragCoord.xy);
-
     vec2 texCoord = gl_FragCoord.xy / resolution;
     Ray r = Ray(camPos, getRayDir(camDir, camUp, texCoord));
 
@@ -292,21 +247,19 @@ void main()
     const int rayPerPixel = 50;
 
     vec3 allColor[rayPerPixel];
+    float xAvg = 0;
+    float yAvg = 0;
+    float zAvg = 0;
     for (int i=0;i<rayPerPixel;i++) {
-        allColor[i] = Trace(r);
+        vec3 t = Trace(r,i);
+        xAvg += t.x;
+        yAvg += t.y;
+        zAvg += t.z;
     }
+    vec4 newColor = vec4(xAvg/rayPerPixel,yAvg/rayPerPixel,zAvg/rayPerPixel, 1.0);
 
-    float xAvg = allColor[0].x;
-    float yAvg = allColor[0].y;
-    float zAvg = allColor[0].z;
-
-    if (rayPerPixel>1) {
-        for (int i=1;i<rayPerPixel;i++) {
-            xAvg += allColor[i].x;
-            yAvg += allColor[i].y;
-            zAvg += allColor[i].z;
-        }
-    }
-
-    FragColor = vec4(xAvg/rayPerPixel,yAvg/rayPerPixel,zAvg/rayPerPixel, 1.0);
+    if (lastMove<=1)
+        FragColor = newColor;
+    else
+        FragColor = combine_with_old_frame(newColor,texCoord);
 }

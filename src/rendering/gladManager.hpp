@@ -69,30 +69,6 @@ public:
       glBindBuffer(GL_UNIFORM_BUFFER, 0);
    }
 
-   static void createAccumulationTexture(int width, int height) {
-      // create the texture
-      GLuint accumTex;
-      glGenTextures(1, &accumTex);
-      glBindTexture(GL_TEXTURE_2D, accumTex);
-      glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
-
-      // Filtres = nearest, pas de mipmaps
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-      glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
-
-
-      // Attached the texture
-      GLuint accumFBO;
-      glGenFramebuffers(1, &accumFBO);
-      glBindFramebuffer(GL_FRAMEBUFFER, accumFBO);
-      glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, accumTex, 0);
-
-      if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
-         std::cerr << "Framebuffer not complete!" << std::endl;
-      }
-      glBindFramebuffer(GL_FRAMEBUFFER, 0);
-   }
-
    static void clear() {
       glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
       glClear(GL_COLOR_BUFFER_BIT);
@@ -114,6 +90,47 @@ public:
       return p_deltaTime;
    }
 
+   static void generateFrameBuffer(int width, int height) {
+      glGenFramebuffers(2, framebuffers);
+      glGenTextures(2, textures);
+
+      for (int i = 0; i < 2; i++) {
+         glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[i]);
+
+         glBindTexture(GL_TEXTURE_2D, textures[i]);
+         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+
+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textures[i], 0);
+
+         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "Framebuffer " << i << " not complete!" << std::endl;
+         }
+      }
+
+      glBindFramebuffer(GL_FRAMEBUFFER, 0); // unbind
+   }
+
+   static void renderingToTexture(int width, int height) {
+      int index = writeToFirstTexture ? 0 : 1;
+      glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[index]);
+      glViewport(0, 0, width, height);
+
+      // alterne pour la prochaine frame
+      writeToFirstTexture = !writeToFirstTexture;
+   }
+
+   static GLuint getAccumTexture() {
+      // renvoie la texture "ancienne" (celle qu’on ne vient pas de remplir)
+      return textures[writeToFirstTexture ? 1 : 0];
+   }
+
+public:
+   static GLuint framebuffers[2];
+   static GLuint textures[2];
+   static bool writeToFirstTexture;
 private:
    static std::unique_ptr<Camera> camera;
    static float p_deltaTime;
