@@ -113,6 +113,24 @@ public:
       glBindFramebuffer(GL_FRAMEBUFFER, 0); // unbind
    }
 
+   static void regenerateFrameBuffer(int width, int height) {
+      for (int i = 0; i < 2; i++) {
+         glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[i]);
+
+         glBindTexture(GL_TEXTURE_2D, textures[i]);
+         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA32F, width, height, 0, GL_RGBA, GL_FLOAT, nullptr);
+
+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+
+         glFramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, textures[i], 0);
+
+         if (glCheckFramebufferStatus(GL_FRAMEBUFFER) != GL_FRAMEBUFFER_COMPLETE) {
+            std::cerr << "Framebuffer " << i << " not complete!" << std::endl;
+         }
+      }
+   }
+
    static void renderingToTexture(int width, int height) {
       int index = writeToFirstTexture ? 0 : 1;
       glBindFramebuffer(GL_FRAMEBUFFER, framebuffers[index]);
@@ -127,10 +145,19 @@ public:
       return textures[writeToFirstTexture ? 1 : 0];
    }
 
+   static void incrementFrameSinceLastMove() {
+      frameSinceLastMove++;
+   }
+
+   static int getFrameSinceLastMove() {
+      return frameSinceLastMove;
+   }
+
 public:
    static GLuint framebuffers[2];
    static GLuint textures[2];
    static bool writeToFirstTexture;
+   static int frameSinceLastMove;
 private:
    static std::unique_ptr<Camera> camera;
    static float p_deltaTime;

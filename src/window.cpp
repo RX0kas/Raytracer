@@ -19,6 +19,8 @@ void framebuffer_size_callback(GLFWwindow* window, int width, int height) {
    glViewport(0, 0, width, height);
    windowInstance()->width = width;
    windowInstance()->height = height;
+   gladManager::regenerateFrameBuffer(width, height);
+   gladManager::frameSinceLastMove = 0;
 }
 
 static bool mouseEnabled = true;

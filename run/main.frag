@@ -12,6 +12,7 @@ uniform vec3 camPos;
 uniform int time;
 uniform int maxBounces;
 uniform int lastMove;
+uniform int rayPerPixel;
 uniform sampler2D oldFrame;
 
 struct Material {
@@ -239,14 +240,12 @@ void main()
     floorM.emissionColor = vec4(1,1,1,1);
     floorM.emissionStrength = 0.1;
 
-    spheres[0] = Sphere(vec3(-3.5,0,10), 1.0, m0);
+    spheres[0] = Sphere(vec3(-3.5,-1.5,10), 1.0, m0);
     spheres[1] = Sphere(vec3(0,0,10), 2.0, m1);
-    spheres[2] = Sphere(vec3(3.5,0,10), 1.0, m2);
+    spheres[2] = Sphere(vec3(3.5,-1.5,10), 1.0, m2);
     spheres[3] = Sphere(vec3(0,-102,10), 100.0, floorM);
 
-    const int rayPerPixel = 50;
-
-    vec3 allColor[rayPerPixel];
+    vec3 allColor[100];
     float xAvg = 0;
     float yAvg = 0;
     float zAvg = 0;

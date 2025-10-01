@@ -80,6 +80,7 @@ add_executable(Raytracer
         src/rendering/shader.cpp src/rendering/shader.hpp
         src/rendering/Camera.hpp
         src/rendering/gladManager.cpp
+        src/rendering/camera.cpp
 )
 
 # --- Liens ---

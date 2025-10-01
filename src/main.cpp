@@ -58,7 +58,7 @@ int main() {
    gladManager::generateFrameBuffer(window->width, window->height);
 
    unsigned int time = 0;
-   int frameSinceLastMove = 0;
+   int rayPerPixel = 50;
 
    // Boucle principale
    while (!windowShouldClose()) {
@@ -110,6 +110,7 @@ int main() {
       ImGui::Text("Front: %.2f,%.2f,%.2f",front.x,front.y,front.z);
       ImGui::Separator();
       ImGui::SliderInt("Max bounces",&maxBounces,2,100);
+      ImGui::SliderInt("Ray per pixel",&rayPerPixel,1,100);
       ImGui::Separator();
       ImGui::Text("DeltaTime: %.2f",d);
       ImGui::Text("FPS: %.2f",1/d);
@@ -122,17 +123,18 @@ int main() {
       ImGui::Text("camPos = (%.2f,%.2f,%.2f)\n",pos.x,pos.y,pos.z);
       ImGui::Text("time = %d",time);
       ImGui::Text("maxBounces = %d",maxBounces);
-      ImGui::Text("lastMove = %d",frameSinceLastMove);
+      ImGui::Text("lastMove = %d", gladManager::frameSinceLastMove);
+      ImGui::Text("rayPerPixel = %d",rayPerPixel);
       ImGui::End();
 
       // Shader things
       if (moved) {
-         frameSinceLastMove = 0;
+         gladManager::frameSinceLastMove = 0;
       } else {
-         frameSinceLastMove++;
+         gladManager::frameSinceLastMove++;
       }
 
-      int writeIndex = (frameSinceLastMove % 2 == 0) ? 0 : 1;
+      int writeIndex = (gladManager::frameSinceLastMove % 2 == 0) ? 0 : 1;
       int readIndex = 1 - writeIndex; // on lit l’autre texture
 
       glBindFramebuffer(GL_FRAMEBUFFER, gladManager::framebuffers[writeIndex]);
@@ -145,7 +147,8 @@ int main() {
       shader.setVec3f("camPos",pos.x,pos.y,pos.z);
       shader.setUInt("time",time);
       shader.setInt("maxBounces",maxBounces);
-      shader.setInt("lastMove",frameSinceLastMove);
+      shader.setInt("lastMove", gladManager::frameSinceLastMove);
+      shader.setInt("rayPerPixel",rayPerPixel);
       // Send old frame
       glActiveTexture(GL_TEXTURE0);
       glBindTexture(GL_TEXTURE_2D, gladManager::getAccumTexture());
